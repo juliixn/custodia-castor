@@ -1,12 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TextInput, TouchableOpacity, Linking } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import Geolocation from 'react-native-geolocation-service';
+import ReportButtons from '../components/ReportButtons';
+import ReportOptions from '../components/ReportOptions';
 
-const MainScreen = ({ route }) => {
+const MainScreen = ({ route, navigation }) => {
   const { userType } = route.params;
   const [location, setLocation] = useState(null);
+  const [isReporting, setIsReporting] = useState(false);
+  const [reportType, setReportType] = useState(null);
+  const [vehicleNumber, setVehicleNumber] = useState('');
+  const [showReportOptions, setShowReportOptions] = useState(false);
+  const [isAccompaniment, setIsAccompaniment] = useState(false);
 
   useEffect(() => {
     Geolocation.getCurrentPosition(
@@ -22,6 +29,42 @@ const MainScreen = ({ route }) => {
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );
   }, []);
+
+  const handleReport = (type) => {
+    setReportType(type);
+    setIsReporting(true);
+  };
+
+  const handleVehicleNumberSubmit = () => {
+    console.log(`Reporte: ${reportType}, Número de vehículo: ${vehicleNumber}`);
+    setIsReporting(false);
+    setShowReportOptions(true);
+  };
+
+  const handleOptionSelected = (option) => {
+    setShowReportOptions(false);
+    setVehicleNumber('');
+    console.log(`Opción seleccionada: ${option}`);
+    if (option === 'acompanamiento') {
+      setIsAccompaniment(true);
+    } else if (option === 'permanecer') {
+      // Lógica para "Permanecer en posición"
+      alert('Reporte enviado: Permanecer en posición');
+    } else if (option === 'indicaciones') {
+      // Lógica para "Esperar indicaciones"
+      navigation.navigate('Chat');
+    }
+  };
+
+  const handleEndAccompaniment = () => {
+    setIsAccompaniment(false);
+    alert('Acompañamiento finalizado');
+  };
+
+  const handleSOS = () => {
+    Linking.openURL('tel:999');
+    navigation.navigate('Camera');
+  };
 
   return (
     <View style={styles.container}>
@@ -46,6 +89,41 @@ const MainScreen = ({ route }) => {
           )}
         </MapView>
       )}
+
+      {userType === 'custodio' && !isReporting && !showReportOptions && !isAccompaniment && (
+        <ReportButtons onReport={handleReport} />
+      )}
+
+      {isReporting && (
+        <View style={styles.reportingContainer}>
+          <Text style={styles.reportingTitle}>Reportar {reportType}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Número Económico"
+            keyboardType="numeric"
+            value={vehicleNumber}
+            onChangeText={setVehicleNumber}
+          />
+          <View style={styles.reportingButtons}>
+            <TouchableOpacity style={styles.reportingButton} onPress={handleVehicleNumberSubmit}>
+                <Text style={styles.reportingButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {showReportOptions && <ReportOptions onOptionSelected={handleOptionSelected} />}
+
+      {isAccompaniment && (
+        <View style={styles.accompanimentContainer}>
+            <TouchableOpacity style={[styles.accompanimentButton, styles.sosButton]} onPress={handleSOS}>
+                <Text style={styles.accompanimentButtonText}>SOS</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.accompanimentButton} onPress={handleEndAccompaniment}>
+                <Text style={styles.accompanimentButtonText}>Finalizar</Text>
+            </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -57,6 +135,61 @@ const styles = StyleSheet.create({
   map: {
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
+  },
+  reportingContainer: {
+    position: 'absolute',
+    bottom: 0,
+    width: '100%',
+    backgroundColor: 'white',
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  reportingTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  input: {
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    marginBottom: 10,
+    paddingHorizontal: 10,
+    borderRadius: 5,
+  },
+  reportingButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+    reportingButton: {
+    backgroundColor: '#3498db',
+    padding: 10,
+    borderRadius: 5,
+  },
+  reportingButtonText: {
+      color: 'white',
+  },
+  accompanimentContainer: {
+    position: 'absolute',
+    bottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+  },
+  accompanimentButton: {
+    backgroundColor: '#2ecc71',
+    padding: 20,
+    borderRadius: 10,
+  },
+  sosButton: {
+    backgroundColor: '#e74c3c',
+  },
+  accompanimentButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
 
