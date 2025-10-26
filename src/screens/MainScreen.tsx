@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions, TextInput, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TextInput, TouchableOpacity, Linking, Alert } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import Geolocation from 'react-native-geolocation-service';
 import ReportButtons from '../components/ReportButtons';
 import ReportOptions from '../components/ReportOptions';
+import { supabase } from '../supabase';
 
 const MainScreen = ({ route, navigation }) => {
   const { userType } = route.params;
@@ -14,8 +15,13 @@ const MainScreen = ({ route, navigation }) => {
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [showReportOptions, setShowReportOptions] = useState(false);
   const [isAccompaniment, setIsAccompaniment] = useState(false);
+  const [session, setSession] = useState(null);
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
     Geolocation.getCurrentPosition(
       (position) => {
         setLocation({
@@ -35,23 +41,56 @@ const MainScreen = ({ route, navigation }) => {
     setIsReporting(true);
   };
 
-  const handleVehicleNumberSubmit = () => {
-    console.log(`Reporte: ${reportType}, Número de vehículo: ${vehicleNumber}`);
-    setIsReporting(false);
-    setShowReportOptions(true);
+  const handleVehicleNumberSubmit = async () => {
+    if (!session) {
+      Alert.alert('Error', 'Debes iniciar sesión para enviar un reporte.');
+      return;
+    }
+
+    const { error } = await supabase.from('reports').insert([
+      {
+        report_type: reportType,
+        vehicle_number: vehicleNumber,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        user_id: session.user.id,
+      },
+    ]);
+
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      setIsReporting(false);
+      setShowReportOptions(true);
+    }
   };
 
-  const handleOptionSelected = (option) => {
+  const handleOptionSelected = async (option) => {
     setShowReportOptions(false);
     setVehicleNumber('');
-    console.log(`Opción seleccionada: ${option}`);
+
     if (option === 'acompanamiento') {
       setIsAccompaniment(true);
     } else if (option === 'permanecer') {
-      // Lógica para "Permanecer en posición"
-      alert('Reporte enviado: Permanecer en posición');
+      if (!session) {
+        Alert.alert('Error', 'Debes iniciar sesión para enviar un reporte.');
+        return;
+      }
+      const { error } = await supabase.from('reports').insert([
+        {
+          report_type: 'permanecer',
+          latitude: location.latitude,
+          longitude: location.longitude,
+          user_id: session.user.id,
+        },
+      ]);
+
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        alert('Reporte enviado: Permanecer en posición');
+      }
     } else if (option === 'indicaciones') {
-      // Lógica para "Esperar indicaciones"
       navigation.navigate('Chat');
     }
   };
