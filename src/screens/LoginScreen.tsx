@@ -3,25 +3,28 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import { supabase } from '../supabase';
 
-const LoginScreen = ({ navigation }) => {
+const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithPassword({
+    setLoading(true);
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: email,
       password: password,
     });
 
     if (error) {
       Alert.alert('Error', error.message);
-    } else {
-      navigation.navigate('Main', { userType: 'custodio' });
     }
+    // The onAuthStateChange in App.tsx will handle navigation
+    setLoading(false);
   };
 
   const handleSignUp = async () => {
-    const { error } = await supabase.auth.signUp({
+    setLoading(true);
+    const { data, error } = await supabase.auth.signUp({
       email: email,
       password: password,
     });
@@ -30,6 +33,18 @@ const LoginScreen = ({ navigation }) => {
       Alert.alert('Error', error.message);
     } else {
       Alert.alert('Éxito', 'Revisa tu correo para verificar tu cuenta.');
+    }
+    setLoading(false);
+  };
+
+  const handlePasswordReset = async () => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://your-app-url.com/reset-password', // You need to configure this
+    });
+    if (error) {
+      Alert.alert('Error', error.message);
+    } else {
+      Alert.alert('Éxito', 'Revisa tu correo para restablecer tu contraseña.');
     }
   };
 
@@ -51,8 +66,9 @@ const LoginScreen = ({ navigation }) => {
         onChangeText={setPassword}
         secureTextEntry
       />
-      <Button title="Iniciar Sesión" onPress={handleLogin} />
-      <Button title="Registrarse" onPress={handleSignUp} />
+      <Button title="Iniciar Sesión" onPress={handleLogin} disabled={loading} />
+      <Button title="Registrarse" onPress={handleSignUp} disabled={loading} />
+      <Button title="Olvidé mi contraseña" onPress={handlePasswordReset} />
     </View>
   );
 };
